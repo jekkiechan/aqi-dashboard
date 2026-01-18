@@ -267,7 +267,6 @@ h1 {
 .map-wrap {
   border-radius: 20px;
   background: linear-gradient(145deg, rgba(245, 244, 240, 0.9), rgba(233, 229, 222, 0.92));
-  border: 1px solid rgba(27, 26, 29, 0.08);
   padding: 1rem;
 }
 
