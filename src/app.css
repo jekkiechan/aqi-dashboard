@@ -22,7 +22,7 @@
   --very-unhealthy: #7a1b1b;
   --hazardous: #2a2f36;
   --missing: #d6d2c8;
-  --cell-size: clamp(16px, 1.4vw, 22px);
+  --cell-size: clamp(18px, 1.6vw, 26px);
 }
 
 *,
@@ -275,6 +275,10 @@ h1 {
   width: 100%;
   height: min(420px, 65vw);
   display: block;
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .district-shape {
@@ -282,9 +286,13 @@ h1 {
   stroke: rgba(27, 26, 29, 0.25);
   stroke-width: 0.4;
   vector-effect: non-scaling-stroke;
+  fill-rule: evenodd;
+  clip-rule: evenodd;
   transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease;
   cursor: pointer;
   transform-origin: center;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 .district-shape:hover {
@@ -441,6 +449,7 @@ h1 {
   color: #fff;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
 }
 
 .summary-chip[data-band='good'] {
@@ -487,9 +496,10 @@ h1 {
   align-items: center;
   justify-content: center;
   font-size: clamp(0.45rem, 0.6vw, 0.6rem);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   color: #fff;
+  font-variant-numeric: tabular-nums;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -753,7 +763,7 @@ h1 {
 
 @media (max-width: 720px) {
   :root {
-    --cell-size: clamp(16px, 4.2vw, 20px);
+    --cell-size: clamp(18px, 5vw, 24px);
   }
 
   .calendar-grid {
