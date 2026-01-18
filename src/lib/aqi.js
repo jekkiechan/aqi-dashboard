@@ -139,7 +139,7 @@ const normalizeConcentration = (pollutant, value) => {
   return value
 }
 
-const buildDailyAverages = (hourly) => {
+export const buildDailyAverages = (hourly) => {
   const days = {}
   const times = hourly?.time || []
 
@@ -255,7 +255,14 @@ const formatDateInTimeZone = (date, timeZone) =>
   }).format(date)
 
 const CACHE_PREFIX = 'aqi-cache-v3'
+const PRECOMPUTED_YEARS = new Set([2024, 2025])
+const PRECOMPUTED_DAILY_PREFIX = '/aqi/daily'
+const PRECOMPUTED_MAP_PREFIX = '/aqi/map'
+const MAP_CACHE_PREFIX = 'aqi-map-cache-v1'
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const precomputedDailyCache = new Map()
+const precomputedMapCache = new Map()
 
 const readCache = (key) => {
   if (typeof window === 'undefined' || !key) return null
@@ -266,6 +273,23 @@ const readCache = (key) => {
     if (!parsed?.timestamp || !parsed?.data) return null
     if (Date.now() - parsed.timestamp > CACHE_TTL_MS) {
       window.localStorage.removeItem(`${CACHE_PREFIX}:${key}`)
+      return null
+    }
+    return parsed.data
+  } catch (error) {
+    return null
+  }
+}
+
+const readMapCache = (key) => {
+  if (typeof window === 'undefined' || !key) return null
+  try {
+    const raw = window.localStorage.getItem(`${MAP_CACHE_PREFIX}:${key}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.timestamp || !parsed?.data) return null
+    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) {
+      window.localStorage.removeItem(`${MAP_CACHE_PREFIX}:${key}`)
       return null
     }
     return parsed.data
@@ -286,12 +310,124 @@ const writeCache = (key, data) => {
   }
 }
 
+const writeMapCache = (key, data) => {
+  if (typeof window === 'undefined' || !key) return
+  try {
+    window.localStorage.setItem(
+      `${MAP_CACHE_PREFIX}:${key}`,
+      JSON.stringify({ timestamp: Date.now(), data })
+    )
+  } catch (error) {
+    // Ignore cache write failures.
+  }
+}
+
+const getDayIndexFromKey = (dateKey) => {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  if (!year || !month || !day) return -1
+  const utcDate = Date.UTC(year, month - 1, day)
+  const utcStart = Date.UTC(year, 0, 1)
+  return Math.floor((utcDate - utcStart) / MS_PER_DAY)
+}
+
+export const buildMonthlyAverages = (days, year) => {
+  const sums = Array(12).fill(0)
+  const counts = Array(12).fill(0)
+
+  for (let i = 0; i < days.length; i += 1) {
+    const value = days[i]
+    if (!Number.isFinite(value)) continue
+    const date = new Date(Date.UTC(year, 0, 1 + i))
+    const monthIndex = date.getUTCMonth()
+    sums[monthIndex] += value
+    counts[monthIndex] += 1
+  }
+
+  return sums.map((sum, index) =>
+    counts[index] ? Math.round(sum / counts[index]) : null
+  )
+}
+
+export const buildDailyAqiSeries = (dailyData, year) => {
+  const daysInYear = Math.round(
+    (Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / MS_PER_DAY
+  )
+  const days = Array(daysInYear).fill(null)
+
+  for (const [dateKey, entry] of Object.entries(dailyData)) {
+    const index = getDayIndexFromKey(dateKey)
+    if (index < 0 || index >= days.length) continue
+    const value = entry?.aqi
+    if (Number.isFinite(value)) {
+      days[index] = value
+    }
+  }
+
+  return {
+    days,
+    monthly: buildMonthlyAverages(days, year),
+  }
+}
+
+export const isPrecomputedYear = (year) => PRECOMPUTED_YEARS.has(Number(year))
+
+const fetchPrecomputedJson = async (url) => {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Precomputed data not found (${response.status})`)
+  }
+  return response.json()
+}
+
+export const fetchPrecomputedDailyAqi = async ({ districtId, year }) => {
+  const cacheKey = `${districtId}-${year}`
+  if (precomputedDailyCache.has(cacheKey)) {
+    return precomputedDailyCache.get(cacheKey)
+  }
+  const url = `${PRECOMPUTED_DAILY_PREFIX}-${year}/${districtId}.json`
+  const data = await fetchPrecomputedJson(url)
+  precomputedDailyCache.set(cacheKey, data)
+  return data
+}
+
+export const fetchPrecomputedMapSeries = async (year) => {
+  const cacheKey = Number(year)
+  if (precomputedMapCache.has(cacheKey)) {
+    return precomputedMapCache.get(cacheKey)
+  }
+  const url = `${PRECOMPUTED_MAP_PREFIX}-${year}.json`
+  const payload = await fetchPrecomputedJson(url)
+  const districts = payload?.districts || {}
+  const series = Object.fromEntries(
+    Object.entries(districts).map(([id, days]) => [
+      id,
+      {
+        days,
+        monthly: buildMonthlyAverages(days, year),
+      },
+    ])
+  )
+  precomputedMapCache.set(cacheKey, series)
+  return series
+}
+
 export const fetchDailyAqi = async ({
   latitude,
   longitude,
   year,
   cacheKey,
+  districtId,
+  skipPrecomputed = false,
 }) => {
+  if (!skipPrecomputed && districtId && isPrecomputedYear(year)) {
+    try {
+      const precomputed = await fetchPrecomputedDailyAqi({ districtId, year })
+      if (precomputed) return precomputed
+    } catch (error) {
+      // Fall back to live fetch if precomputed data is unavailable.
+    }
+  }
+
   const cached = readCache(cacheKey)
   if (cached) return cached
 
@@ -323,4 +459,26 @@ export const fetchDailyAqi = async ({
   const data = buildDailyAverages(payload.hourly)
   writeCache(cacheKey, data)
   return data
+}
+
+export const fetchDailyAqiSeries = async ({
+  latitude,
+  longitude,
+  year,
+  cacheKey,
+  districtId,
+}) => {
+  const cached = readMapCache(cacheKey)
+  if (cached) return cached
+
+  const dailyData = await fetchDailyAqi({
+    latitude,
+    longitude,
+    year,
+    cacheKey: null,
+    districtId,
+  })
+  const series = buildDailyAqiSeries(dailyData, year)
+  writeMapCache(cacheKey, series)
+  return series
 }
