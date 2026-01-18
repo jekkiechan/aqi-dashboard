@@ -396,7 +396,13 @@ h1 {
 .calendar-shell {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 1rem;
+}
+
+.calendar-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .calendar-grid {
@@ -510,6 +516,11 @@ h1 {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
 }
 
+.cell[data-selected='true'] {
+  outline: 2px solid rgba(27, 26, 29, 0.65);
+  outline-offset: 2px;
+}
+
 .cell:focus-visible {
   outline: 3px solid rgba(30, 155, 138, 0.6);
   outline-offset: 2px;
@@ -553,24 +564,82 @@ h1 {
   box-shadow: none;
 }
 
-.detail {
-  border-top: 1px dashed var(--line);
-  padding-top: 1.2rem;
+.day-tooltip {
+  position: fixed;
+  z-index: 40;
+  width: min(320px, calc(100vw - 2rem));
+  padding: 0.9rem;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 22px 50px rgba(12, 12, 18, 0.2);
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+
+.day-tooltip[data-placement='bottom'] {
+  transform: translate(-50%, 0);
+}
+
+.day-tooltip[data-pinned='true'] {
+  pointer-events: auto;
+}
+
+.day-tooltip::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.day-tooltip[data-placement='top']::after {
+  bottom: -7px;
+}
+
+.day-tooltip[data-placement='bottom']::after {
+  top: -7px;
+}
+
+.tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
 }
 
-.detail-header {
+.tooltip-title {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 .detail-date {
   font-weight: 600;
   font-size: 1rem;
+}
+
+.tooltip-pin {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .detail-aqi {
@@ -606,10 +675,44 @@ h1 {
   color: #7b2420;
 }
 
+.detail-clear {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  background: rgba(27, 26, 29, 0.04);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.detail-clear:hover {
+  background: rgba(27, 26, 29, 0.1);
+  color: var(--ink);
+}
+
+.detail-clear:focus-visible {
+  outline: 2px solid rgba(30, 155, 138, 0.6);
+  outline-offset: 2px;
+}
+
+.tooltip-body {
+  overflow: auto;
+  max-height: calc(70vh - 4.5rem);
+  padding-right: 0.2rem;
+}
+
 .pollutants {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.7rem;
+}
+
+.day-tooltip .pollutants {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
 }
 
 .pollutant {
@@ -694,11 +797,6 @@ h1 {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-}
-
-.detail-empty {
-  color: var(--muted);
-  font-size: 0.95rem;
 }
 
 .footnote {
@@ -788,6 +886,10 @@ h1 {
 
   .month-name {
     font-size: 0.65rem;
+  }
+
+  .day-tooltip .pollutants {
+    grid-template-columns: 1fr;
   }
 }
 

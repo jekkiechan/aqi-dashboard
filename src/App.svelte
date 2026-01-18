@@ -1,4 +1,5 @@
 <script>
+  import { onDestroy, onMount, tick } from 'svelte'
   import districtGeo from './assets/bangkok-districts.json'
   import { fetchDailyAqi, getPollutantMeta } from './lib/aqi.js'
   import { buildDistrictData } from './lib/geo.js'
@@ -22,6 +23,13 @@
   let calendar = []
   let dailyData = {}
   let hoveredDay = null
+  let pinnedDay = null
+  let activeDay = null
+  let hoveredAnchor = null
+  let pinnedAnchor = null
+  let activeAnchor = null
+  let tooltipEl = null
+  let tooltipPosition = { top: 0, left: 0, placement: 'top' }
   let loading = false
   let error = ''
   let monthSummaries = []
@@ -94,6 +102,9 @@
     if (key !== lastKey) {
       lastKey = key
       hoveredDay = null
+      pinnedDay = null
+      hoveredAnchor = null
+      pinnedAnchor = null
       loadData(selectedDistrict, selectedYear, key)
     }
   }
@@ -146,6 +157,32 @@
   const formatStat = (value) =>
     Number.isFinite(value) ? value.toFixed(1).replace(/\.0$/, '') : 'N/A'
 
+  const buildDayPayload = (day) => ({ ...day, data: dailyData[day.dateKey] })
+
+  const setHoveredDay = (day, event) => {
+    if (pinnedDay) return
+    hoveredDay = buildDayPayload(day)
+    hoveredAnchor = event.currentTarget
+  }
+
+  const clearHoveredDay = () => {
+    hoveredDay = null
+    hoveredAnchor = null
+  }
+
+  const togglePinnedDay = (day, event) => {
+    const payload = buildDayPayload(day)
+    pinnedDay = pinnedDay?.dateKey === payload.dateKey ? null : payload
+    pinnedAnchor = pinnedDay ? event.currentTarget : null
+  }
+
+  const clearPinnedDay = () => {
+    pinnedDay = null
+    pinnedAnchor = null
+  }
+
+  const isPinnedDay = (day) => pinnedDay?.dateKey === day.dateKey
+
   const getTone = (aqi) => {
     if (!Number.isFinite(aqi)) return 'neutral'
     if (aqi <= 50) return 'good'
@@ -181,7 +218,62 @@
     return summary
   }
 
+  const updateTooltipPosition = async () => {
+    if (!activeAnchor || !activeDay) return
+    await tick()
+    if (!tooltipEl || !activeAnchor) return
+    const anchorRect = activeAnchor.getBoundingClientRect()
+    const tooltipRect = tooltipEl.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const gap = 12
+    const padding = 12
+
+    const spaceAbove = anchorRect.top - gap - padding
+    const spaceBelow = viewportHeight - anchorRect.bottom - gap - padding
+    const placement =
+      spaceAbove >= tooltipRect.height || spaceAbove >= spaceBelow ? 'top' : 'bottom'
+    const top = placement === 'top' ? anchorRect.top - gap : anchorRect.bottom + gap
+
+    const halfWidth = tooltipRect.width / 2
+    let left = anchorRect.left + anchorRect.width / 2
+    left = Math.max(padding + halfWidth, Math.min(left, viewportWidth - padding - halfWidth))
+
+    tooltipPosition = { top, left, placement }
+  }
+
+  let tooltipRaf = 0
+  const scheduleTooltipPosition = () => {
+    if (tooltipRaf) return
+    tooltipRaf = requestAnimationFrame(() => {
+      tooltipRaf = 0
+      updateTooltipPosition()
+    })
+  }
+
   $: monthSummaries = calendar.map((month) => getMonthSummary(month, dailyData))
+  $: activeDay = pinnedDay || hoveredDay
+  $: activeAnchor = pinnedAnchor || hoveredAnchor
+  $: if (activeDay && activeAnchor) {
+    scheduleTooltipPosition()
+  }
+
+  onMount(() => {
+    const handleScroll = () => scheduleTooltipPosition()
+    const handleResize = () => scheduleTooltipPosition()
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
+    }
+  })
+
+  onDestroy(() => {
+    if (tooltipRaf) {
+      cancelAnimationFrame(tooltipRaf)
+    }
+  })
 </script>
 
 <main class="page">
@@ -190,8 +282,8 @@
       <p class="eyebrow">Bangkok AQI Atlas</p>
       <h1>Bangkok Air Quality Calendar</h1>
       <p class="lead">
-        Daily US AQI derived from open air-quality data. Hover a day to inspect
-        pollutant averages.
+        Daily US AQI derived from open air-quality data. Hover or tap a day to
+        inspect pollutant averages. Click to pin a day while you scroll.
       </p>
     </div>
     <div class="controls">
@@ -288,6 +380,9 @@
     {/if}
 
     <div class="calendar-shell">
+      <p class="calendar-hint">
+        Hover or tap a day to preview details. Click to pin the tooltip.
+      </p>
       <div class="calendar-grid">
         {#each calendar as month, index}
           {@const summary = monthSummaries[index] || {}}
@@ -315,9 +410,13 @@
                     <button
                       class="cell"
                       data-band={getBand(dailyData[day.dateKey].aqi)}
-                      on:mouseenter={() =>
-                        (hoveredDay = { ...day, data: dailyData[day.dateKey] })}
-                      on:mouseleave={() => (hoveredDay = null)}
+                      data-selected={isPinnedDay(day)}
+                      aria-pressed={isPinnedDay(day)}
+                      on:mouseenter={(event) => setHoveredDay(day, event)}
+                      on:mouseleave={clearHoveredDay}
+                      on:focus={(event) => setHoveredDay(day, event)}
+                      on:blur={clearHoveredDay}
+                      on:click={(event) => togglePinnedDay(day, event)}
                       aria-label={`${formatDisplayDate(day.date)} AQI ${dailyData[day.dateKey].aqi}`}
                     >
                       {#if showNumbers}
@@ -328,9 +427,13 @@
                     <button
                       class="cell"
                       data-band="missing"
-                      on:mouseenter={() =>
-                        (hoveredDay = { ...day, data: dailyData[day.dateKey] })}
-                      on:mouseleave={() => (hoveredDay = null)}
+                      data-selected={isPinnedDay(day)}
+                      aria-pressed={isPinnedDay(day)}
+                      on:mouseenter={(event) => setHoveredDay(day, event)}
+                      on:mouseleave={clearHoveredDay}
+                      on:focus={(event) => setHoveredDay(day, event)}
+                      on:blur={clearHoveredDay}
+                      on:click={(event) => togglePinnedDay(day, event)}
                       aria-label={`${formatDisplayDate(day.date)} No data`}
                     ></button>
                   {/if}
@@ -344,49 +447,66 @@
       </div>
     </div>
 
-    <div class="detail">
-      {#if hoveredDay}
-        <div class="detail-header">
-          <span class="detail-date">{formatDisplayDate(hoveredDay.date)}</span>
-          {#if hoveredDay.data?.aqi != null}
-            <span class="detail-aqi" data-tone={getTone(hoveredDay.data.aqi)}>
-              AQI {hoveredDay.data.aqi}
-            </span>
-          {:else}
-            <span class="detail-aqi muted">No data</span>
-          {/if}
+    {#if activeDay}
+      <div
+        class="day-tooltip"
+        bind:this={tooltipEl}
+        style={`top: ${tooltipPosition.top}px; left: ${tooltipPosition.left}px;`}
+        data-placement={tooltipPosition.placement}
+        data-pinned={pinnedDay ? 'true' : 'false'}
+        role="tooltip"
+      >
+        <div class="tooltip-header">
+          <div class="tooltip-title">
+            <span class="detail-date">{formatDisplayDate(activeDay.date)}</span>
+            {#if pinnedDay}
+              <span class="tooltip-pin">Pinned</span>
+            {/if}
+          </div>
+          <div class="detail-meta">
+            {#if activeDay.data?.aqi != null}
+              <span class="detail-aqi" data-tone={getTone(activeDay.data.aqi)}>
+                AQI {activeDay.data.aqi}
+              </span>
+            {:else}
+              <span class="detail-aqi muted">No data</span>
+            {/if}
+            {#if pinnedDay}
+              <button class="detail-clear" type="button" on:click={clearPinnedDay}>
+                Close
+              </button>
+            {/if}
+          </div>
         </div>
-        <div class="pollutants">
-          {#each pollutantMeta as pollutant}
-            {@const pollutantData = hoveredDay.data?.pollutants?.[pollutant.id]}
-            <div class="pollutant" data-tone={getTone(pollutantData?.aqi)}>
-              <div class="pollutant-head">
-                <span class="pollutant-label">{pollutant.label}</span>
-                <span class="pollutant-unit">{pollutant.unit}</span>
+        <div class="tooltip-body">
+          <div class="pollutants">
+            {#each pollutantMeta as pollutant}
+              {@const pollutantData = activeDay.data?.pollutants?.[pollutant.id]}
+              <div class="pollutant" data-tone={getTone(pollutantData?.aqi)}>
+                <div class="pollutant-head">
+                  <span class="pollutant-label">{pollutant.label}</span>
+                  <span class="pollutant-unit">{pollutant.unit}</span>
+                </div>
+                <div class="pollutant-stats">
+                  <span>
+                    <strong>{formatStat(pollutantData?.avg)}</strong>
+                    <small>avg</small>
+                  </span>
+                  <span>
+                    <strong>{formatStat(pollutantData?.min)}</strong>
+                    <small>min</small>
+                  </span>
+                  <span>
+                    <strong>{formatStat(pollutantData?.max)}</strong>
+                    <small>max</small>
+                  </span>
+                </div>
               </div>
-              <div class="pollutant-stats">
-                <span>
-                  <strong>{formatStat(pollutantData?.avg)}</strong>
-                  <small>avg</small>
-                </span>
-                <span>
-                  <strong>{formatStat(pollutantData?.min)}</strong>
-                  <small>min</small>
-                </span>
-                <span>
-                  <strong>{formatStat(pollutantData?.max)}</strong>
-                  <small>max</small>
-                </span>
-              </div>
-            </div>
-          {/each}
+            {/each}
+          </div>
         </div>
-      {:else}
-        <div class="detail-empty">
-          <p>Hover a day to see AQI plus avg/min/max pollutant data.</p>
-        </div>
-      {/if}
-    </div>
+      </div>
+    {/if}
   </section>
 
   <footer class="footnote">
