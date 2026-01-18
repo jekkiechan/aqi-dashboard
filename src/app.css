@@ -562,14 +562,22 @@ h1 {
   fill: var(--missing);
 }
 
-.district-shape:hover {
-  filter: brightness(0.95) saturate(1.1);
-}
-
 .district-shape[data-selected='true'] {
   stroke: rgba(27, 26, 29, 0.85);
   stroke-width: 1.1;
   filter: drop-shadow(0 4px 8px rgba(27, 26, 29, 0.2));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .district-shape:hover {
+    filter: brightness(0.95) saturate(1.1);
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .district-shape[data-selected='true'] {
+    filter: none;
+  }
 }
 
 .district-shape:focus-visible {
