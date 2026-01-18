@@ -227,14 +227,34 @@
     )
     let offset = 0
 
-    return SUMMARY_BANDS.map((band) => {
+    const parts = SUMMARY_BANDS.map((band) => {
       const count = summary[band.id] || 0
       const width = total ? (count / total) * 100 : 0
       const percent = total ? Math.round(width) : 0
       const center = Math.min(96, Math.max(4, offset + width / 2))
       offset += width
-      return { ...band, count, width, percent, center }
+      return { ...band, count, width, percent, center, showLabel: false }
     })
+
+    const minLabelWidth = 8
+    const visibleLabels = parts.filter(
+      (part) => part.percent > 0 && part.width >= minLabelWidth
+    )
+    if (visibleLabels.length) {
+      visibleLabels.forEach((part) => {
+        part.showLabel = true
+      })
+    } else {
+      const largest = parts.reduce(
+        (winner, part) => (part.width > winner.width ? part : winner),
+        parts[0]
+      )
+      if (largest.percent > 0) {
+        largest.showLabel = true
+      }
+    }
+
+    return parts
   }
 
   const updateTooltipPosition = async () => {
@@ -426,14 +446,16 @@
                     <span
                       class="summary-segment"
                       data-band={band.id}
+                      data-tooltip={`${band.percent}%`}
                       style={`width: ${band.width.toFixed(1)}%`}
+                      title={`${band.label} days (${band.percent}%)`}
                       aria-hidden="true"
                     ></span>
                   {/each}
                 </div>
                 <div class="summary-percentages">
                   {#each summaryParts as band}
-                    {#if band.percent > 0}
+                    {#if band.showLabel}
                       <span
                         class="summary-percent"
                         data-band={band.id}
