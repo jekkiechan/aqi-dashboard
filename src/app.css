@@ -331,9 +331,10 @@ h1 {
 }
 
 .legend-items {
-  display: grid;
-  grid-auto-flow: column;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
+  align-items: center;
 }
 
 .legend-item {
@@ -343,6 +344,7 @@ h1 {
   font-weight: 600;
   color: #fff;
   text-align: center;
+  white-space: nowrap;
 }
 
 .legend-item[data-band='good'] {
@@ -723,9 +725,17 @@ h1 {
     align-items: flex-start;
   }
 
+  .legend {
+    width: 100%;
+  }
+
   .legend-items {
-    grid-auto-flow: row;
-    grid-template-columns: repeat(3, minmax(70px, 1fr));
+    gap: 0.25rem;
+  }
+
+  .legend-item {
+    font-size: 0.65rem;
+    padding: 0.25rem 0.45rem;
   }
 }
 
@@ -742,6 +752,10 @@ h1 {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --cell-size: clamp(16px, 4.2vw, 20px);
+  }
+
   .calendar-grid {
     grid-template-columns: 1fr;
   }
@@ -754,11 +768,6 @@ h1 {
 
   .control {
     flex: 1;
-  }
-
-  .toggle {
-    width: 100%;
-    justify-content: space-between;
   }
 
   .panel {
