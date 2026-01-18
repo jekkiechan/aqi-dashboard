@@ -167,6 +167,7 @@
     const summary = Object.fromEntries(
       SUMMARY_BANDS.map((band) => [band.id, 0])
     )
+    let totalDays = 0
 
     month.cells.forEach((day) => {
       if (!day) return
@@ -175,10 +176,17 @@
       const band = getBand(aqi)
       if (summary[band] !== undefined) {
         summary[band] += 1
+        totalDays += 1
       }
     })
 
-    return summary
+    const bands = SUMMARY_BANDS.map((band) => {
+      const count = summary[band.id] || 0
+      const percent = totalDays ? (count / totalDays) * 100 : 0
+      return { ...band, count, percent }
+    })
+
+    return { totalDays, bands }
   }
 
   $: monthSummaries = calendar.map((month) => getMonthSummary(month, dailyData))
@@ -290,22 +298,35 @@
     <div class="calendar-shell">
       <div class="calendar-grid">
         {#each calendar as month, index}
-          {@const summary = monthSummaries[index] || {}}
+          {@const summary = monthSummaries[index] || { totalDays: 0, bands: [] }}
           <div class="month-card">
             <div class="month-header">
               <div class="month-name">{month.name}</div>
               <div class="month-summary">
                 <span class="summary-label">Summary</span>
-                {#each SUMMARY_BANDS as band}
-                  <span
-                    class="summary-chip"
-                    data-band={band.id}
-                    title={`${band.label} days`}
-                    aria-label={`${band.label} days`}
-                  >
-                    {summary[band.id]}
-                  </span>
-                {/each}
+                <div
+                  class="month-summary-bar"
+                  role="img"
+                  aria-label={`Monthly AQI band breakdown for ${month.name}`}
+                >
+                  {#if summary.totalDays}
+                    {#each summary.bands as band}
+                      <span
+                        class="summary-segment"
+                        data-band={band.id}
+                        style={`flex-basis: ${band.percent}%; width: ${band.percent}%;`}
+                        title={`${band.label}: ${band.percent.toFixed(0)}% (${band.count} days)`}
+                        aria-label={`${band.label}: ${band.percent.toFixed(0)}% (${band.count} days)`}
+                      ></span>
+                    {/each}
+                  {:else}
+                    <span
+                      class="summary-segment is-empty"
+                      title="No days with AQI data"
+                      aria-label="No days with AQI data"
+                    ></span>
+                  {/if}
+                </div>
               </div>
             </div>
             <div class="month-grid">

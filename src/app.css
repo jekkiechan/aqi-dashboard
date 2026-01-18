@@ -443,39 +443,49 @@ h1 {
   margin-right: 0.2rem;
 }
 
-.summary-chip {
-  padding: 0.2rem 0.45rem;
+.month-summary-bar {
+  display: flex;
+  align-items: stretch;
+  height: 10px;
+  width: 120px;
   border-radius: 999px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  background: rgba(27, 26, 29, 0.08);
+  border: 1px solid rgba(27, 26, 29, 0.1);
 }
 
-.summary-chip[data-band='good'] {
+.summary-segment {
+  height: 100%;
+  flex: 0 0 auto;
+  transition: width 0.2s ease;
+}
+
+.summary-segment.is-empty {
+  flex: 1;
+  background: rgba(27, 26, 29, 0.12);
+}
+
+.summary-segment[data-band='good'] {
   background: var(--good);
 }
 
-.summary-chip[data-band='moderate'] {
+.summary-segment[data-band='moderate'] {
   background: var(--moderate);
-  color: #2b2411;
 }
 
-.summary-chip[data-band='usg'] {
+.summary-segment[data-band='usg'] {
   background: var(--usg);
 }
 
-.summary-chip[data-band='unhealthy'] {
+.summary-segment[data-band='unhealthy'] {
   background: var(--unhealthy);
 }
 
-.summary-chip[data-band='very-unhealthy'] {
+.summary-segment[data-band='very-unhealthy'] {
   background: var(--very-unhealthy);
 }
 
-.summary-chip[data-band='hazardous'] {
+.summary-segment[data-band='hazardous'] {
   background: var(--hazardous);
 }
 
