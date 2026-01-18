@@ -527,7 +527,7 @@ h1 {
   vector-effect: non-scaling-stroke;
   fill-rule: evenodd;
   clip-rule: evenodd;
-  transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+  transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
   cursor: pointer;
   transform-origin: center;
   -webkit-tap-highlight-color: transparent;
@@ -565,18 +565,13 @@ h1 {
 .district-shape[data-selected='true'] {
   stroke: rgba(27, 26, 29, 0.85);
   stroke-width: 1.1;
-  filter: drop-shadow(0 4px 8px rgba(27, 26, 29, 0.2));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .district-shape:hover {
-    filter: brightness(0.95) saturate(1.1);
-  }
-}
-
-@media (hover: none) and (pointer: coarse) {
-  .district-shape[data-selected='true'] {
-    filter: none;
+    stroke: rgba(27, 26, 29, 0.7);
+    stroke-width: 1;
+    opacity: 0.92;
   }
 }
 
