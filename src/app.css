@@ -236,6 +236,7 @@ h1 {
 
 .map-panel {
   background: var(--surface);
+  border: none;
   border-radius: 28px;
   padding: clamp(1.5rem, 3vw, 2.2rem);
   box-shadow: 0 30px 60px rgba(12, 12, 18, 0.1);
