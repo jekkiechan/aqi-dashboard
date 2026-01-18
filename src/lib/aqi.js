@@ -146,9 +146,17 @@ const buildDailyAverages = (hourly) => {
   for (let i = 0; i < times.length; i += 1) {
     const dateKey = times[i].slice(0, 10)
     if (!days[dateKey]) {
-      days[dateKey] = { sums: {}, counts: {}, mins: {}, maxs: {} }
+      days[dateKey] = {
+        sums: {},
+        counts: {},
+        mins: {},
+        maxs: {},
+        hourlyMinAqi: null,
+        hourlyMaxAqi: null,
+      }
     }
     const entry = days[dateKey]
+    let hourlyPeakAqi = null
     for (const pollutant of POLLUTANTS) {
       const values = hourly[pollutant.hourly]
       const value = values?.[i]
@@ -163,7 +171,24 @@ const buildDailyAverages = (hourly) => {
           entry.maxs[pollutant.id] === undefined
             ? value
             : Math.max(entry.maxs[pollutant.id], value)
+
+        const normalized = normalizeConcentration(pollutant, value)
+        const aqi = computeAqi(normalized, pollutant.breakpoints)
+        if (Number.isFinite(aqi)) {
+          hourlyPeakAqi = hourlyPeakAqi === null ? aqi : Math.max(hourlyPeakAqi, aqi)
+        }
       }
+    }
+
+    if (Number.isFinite(hourlyPeakAqi)) {
+      entry.hourlyMinAqi =
+        entry.hourlyMinAqi === null
+          ? hourlyPeakAqi
+          : Math.min(entry.hourlyMinAqi, hourlyPeakAqi)
+      entry.hourlyMaxAqi =
+        entry.hourlyMaxAqi === null
+          ? hourlyPeakAqi
+          : Math.max(entry.hourlyMaxAqi, hourlyPeakAqi)
     }
   }
 
@@ -196,8 +221,17 @@ const buildDailyAverages = (hourly) => {
       }
     }
 
+    const aqiAvg = pollutantAqis.length ? Math.max(...pollutantAqis) : null
+
     daily[dateKey] = {
-      aqi: pollutantAqis.length ? Math.max(...pollutantAqis) : null,
+      aqi: aqiAvg,
+      aqiStats: Number.isFinite(entry.hourlyMinAqi)
+        ? {
+            avg: aqiAvg,
+            min: entry.hourlyMinAqi,
+            max: entry.hourlyMaxAqi,
+          }
+        : null,
       pollutants,
     }
   }
@@ -220,7 +254,7 @@ const formatDateInTimeZone = (date, timeZone) =>
     day: '2-digit',
   }).format(date)
 
-const CACHE_PREFIX = 'aqi-cache-v1'
+const CACHE_PREFIX = 'aqi-cache-v3'
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6
 
 const readCache = (key) => {

@@ -157,6 +157,8 @@
   const formatStat = (value) =>
     Number.isFinite(value) ? value.toFixed(1).replace(/\.0$/, '') : 'N/A'
 
+  const formatAqi = (value) => (Number.isFinite(value) ? Math.round(value) : 'N/A')
+
   const buildDayPayload = (day) => ({ ...day, data: dailyData[day.dateKey] })
 
   const setHoveredDay = (day, event) => {
@@ -216,6 +218,23 @@
     })
 
     return summary
+  }
+
+  const buildSummaryParts = (summary) => {
+    const total = SUMMARY_BANDS.reduce(
+      (sum, band) => sum + (summary[band.id] || 0),
+      0
+    )
+    let offset = 0
+
+    return SUMMARY_BANDS.map((band) => {
+      const count = summary[band.id] || 0
+      const width = total ? (count / total) * 100 : 0
+      const percent = total ? Math.round(width) : 0
+      const center = Math.min(96, Math.max(4, offset + width / 2))
+      offset += width
+      return { ...band, count, width, percent, center }
+    })
   }
 
   const updateTooltipPosition = async () => {
@@ -396,22 +415,45 @@
       <div class="calendar-grid">
         {#each calendar as month, index}
           {@const summary = monthSummaries[index] || {}}
+          {@const summaryParts = buildSummaryParts(summary)}
           <div class="month-card">
             <div class="month-header">
               <div class="month-name">{month.name}</div>
               <div class="month-summary">
                 <span class="summary-label">Summary</span>
-                {#each SUMMARY_BANDS as band}
-                  <span
-                    class="summary-chip"
-                    data-band={band.id}
-                    title={`${band.label} days`}
-                    aria-label={`${band.label} days`}
-                  >
-                    {summary[band.id]}
-                  </span>
-                {/each}
+                <div class="summary-bar" role="img" aria-label="AQI distribution">
+                  {#each summaryParts as band}
+                    <span
+                      class="summary-segment"
+                      data-band={band.id}
+                      style={`width: ${band.width.toFixed(1)}%`}
+                      aria-hidden="true"
+                    ></span>
+                  {/each}
+                </div>
+                <div class="summary-percentages">
+                  {#each summaryParts as band}
+                    {#if band.percent > 0}
+                      <span
+                        class="summary-percent"
+                        data-band={band.id}
+                        style={`left: ${band.center.toFixed(2)}%`}
+                      >
+                        {band.percent}%
+                      </span>
+                    {/if}
+                  {/each}
+                </div>
               </div>
+            </div>
+            <div class="month-weekdays" aria-hidden="true">
+              <span class="weekday">M</span>
+              <span class="weekday">Tu</span>
+              <span class="weekday">W</span>
+              <span class="weekday">Th</span>
+              <span class="weekday">F</span>
+              <span class="weekday">Sa</span>
+              <span class="weekday">Su</span>
             </div>
             <div class="month-grid">
               {#each month.cells as day}
@@ -475,7 +517,7 @@
           </div>
           <div class="detail-meta">
             {#if activeDay.data?.aqi != null}
-              <span class="detail-aqi" data-tone={getTone(activeDay.data.aqi)}>
+              <span class="detail-aqi" data-band={getBand(activeDay.data.aqi)}>
                 AQI {activeDay.data.aqi}
               </span>
             {:else}
@@ -488,6 +530,22 @@
             {/if}
           </div>
         </div>
+        {#if activeDay.data?.aqiStats}
+          <div class="aqi-range">
+            <span data-band={getBand(activeDay.data.aqiStats.avg)}>
+              <small>Avg</small>
+              <strong>{formatAqi(activeDay.data.aqiStats.avg)}</strong>
+            </span>
+            <span data-band={getBand(activeDay.data.aqiStats.min)}>
+              <small>Min</small>
+              <strong>{formatAqi(activeDay.data.aqiStats.min)}</strong>
+            </span>
+            <span data-band={getBand(activeDay.data.aqiStats.max)}>
+              <small>Max</small>
+              <strong>{formatAqi(activeDay.data.aqiStats.max)}</strong>
+            </span>
+          </div>
+        {/if}
         <div class="tooltip-body">
           <div class="pollutants">
             {#each pollutantMeta as pollutant}
