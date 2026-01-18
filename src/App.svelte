@@ -282,8 +282,18 @@
       <p class="eyebrow">Bangkok AQI Atlas</p>
       <h1>Bangkok Air Quality Calendar</h1>
       <p class="lead">
-        Daily US AQI derived from open air-quality data. Hover or tap a day to
-        inspect pollutant averages. Click to pin a day while you scroll.
+        Daily AQI derived from open air-quality data.
+      </p>
+      <p class="equation">
+        Calculated using the
+        <a
+          class="aqi-link"
+          href="https://www.airnow.gov/sites/default/files/2020-05/aqi-technical-assistance-document-sept2018.pdf"
+          target="_blank"
+          rel="noreferrer"
+        >
+          US AQI method
+        </a>.
       </p>
     </div>
     <div class="controls">

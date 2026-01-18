@@ -109,6 +109,31 @@ h1 {
   font-size: 1rem;
 }
 
+.equation {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+.aqi-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(27, 26, 29, 0.3);
+}
+
+.aqi-link:hover {
+  color: var(--ink);
+  border-bottom-color: rgba(27, 26, 29, 0.6);
+}
+
+.aqi-link:focus-visible {
+  outline: 2px solid rgba(30, 155, 138, 0.6);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .controls {
   display: flex;
   gap: 1rem;
@@ -715,6 +740,15 @@ h1 {
   gap: 0.5rem;
 }
 
+.day-tooltip .pollutant-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.day-tooltip .pollutant-stats strong {
+  font-size: clamp(0.7rem, 2.2vw, 0.85rem);
+  line-height: 1.1;
+}
+
 .pollutant {
   display: flex;
   flex-direction: column;
@@ -770,6 +804,7 @@ h1 {
   padding: 0.3rem 0.4rem;
   border-radius: 10px;
   background: rgba(27, 26, 29, 0.05);
+  min-width: 0;
 }
 
 .pollutant[data-tone='good'] .pollutant-stats span {
@@ -790,6 +825,8 @@ h1 {
 
 .pollutant-stats strong {
   font-weight: 700;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .pollutant-stats small {
